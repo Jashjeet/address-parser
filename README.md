@@ -14,36 +14,41 @@ This repository is a self-contained, offline-ready mirror of `urchade/gliner_mul
 
 ## What's in this repo
 
-| File | Source | Purpose |
+No Git LFS. No pointer files. Every file is a real, downloadable blob. The 1.7 GB `pytorch_model.bin` is split into 19 chunks of ~90 MB (under GitHub's 100 MB per-file limit) and reassembled with one command after clone.
+
+| File(s) | Source | Purpose |
 |---|---|---|
-| `pytorch_model.bin` | upstream gliner | Fine-tuned GLiNER weights (encoder + head), 1.7 GB, Git LFS |
+| `pytorch_model.bin.part_aa` … `part_as` (19 files, ~90 MB each, 1.7 GB total) | upstream gliner | Split GLiNER weights — reassemble with `./reassemble.sh` or `python reassemble.py` |
+| `reassemble.sh` / `reassemble.py` | this repo | One-command reassembly of the 19 chunks into `pytorch_model.bin` (with SHA-256 verification) |
 | `gliner_config.json` | upstream gliner, modified | GLiNER head config + **inline `encoder_config`** for the DeBERTa encoder (added so offline load skips the `AutoConfig.from_pretrained("microsoft/deberta-v3-large")` HF call) |
 | `tokenizer_config.json` | upstream microsoft/deberta-v3-large | Picked up by GLiNER's `_load_tokenizer` (looks in `model_dir` first) |
-| `spm.model` | upstream microsoft/deberta-v3-large | SentencePiece vocab, 2.5 MB, Git LFS |
+| `spm.model` | upstream microsoft/deberta-v3-large | SentencePiece vocab, 2.5 MB |
 | `config.json` | upstream microsoft/deberta-v3-large | DeBERTa base-model config (kept as reference; the encoder load uses the inline `encoder_config` in `gliner_config.json`) |
 | `generator_config.json` | upstream microsoft/deberta-v3-large | Pretraining generator config (unused at inference, kept for fidelity) |
-| `.gitattributes` | upstream gliner | LFS filter rules |
+
+`pytorch_model.bin` SHA-256: `1bf014f5849eb38bcb7b1c95c539b2b0289beff96920b65c2cbfe6db5e9330aa` (matches upstream `urchade/gliner_multi-v2.1`).
 
 DeBERTa base-model weights (`microsoft/deberta-v3-large/pytorch_model.bin`, ~870 MB) are NOT included — the GLiNER `pytorch_model.bin` already contains the fine-tuned encoder.
 
 The following upstream files do not exist in `microsoft/deberta-v3-large` (HF returns 404) and are not needed: `special_tokens_map.json`, `tokenizer.json` (fast), `added_tokens.json`.
 
-## Clone
-
-The 1.7 GB `pytorch_model.bin` is stored in Git LFS — you need `git-lfs` installed for the clone to materialize the file (otherwise you'll get a small pointer text file).
+## Clone + reassemble
 
 ```bash
-# One-time, per machine
-git lfs install
-
 git clone https://github.com/Jashjeet/address-parser.git
 cd address-parser
 
-# Confirm the bin landed (should be ~1.7 GB, not a few hundred bytes)
-ls -lh pytorch_model.bin
+# Reassemble pytorch_model.bin from the 19 chunks (verifies SHA-256)
+./reassemble.sh
+# …or, cross-platform:
+python reassemble.py
 ```
 
-If `pytorch_model.bin` is small (a text pointer), run `git lfs pull` to fetch the actual object.
+Result: a real `pytorch_model.bin` (1.7 GB) at the repo root. The chunk files can be deleted after reassembly if disk space matters, but the reassemble script is idempotent and skips if the bin already exists.
+
+Direct-download fallback (no git clone): every chunk has a raw URL like
+`https://raw.githubusercontent.com/Jashjeet/address-parser/main/pytorch_model.bin.part_aa`
+so you can `curl`/`wget` each one and `cat` them locally.
 
 ## Install Python deps
 
